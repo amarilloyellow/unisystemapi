@@ -1,0 +1,145 @@
+// ######################################################
+// ##      Esquema de Base de Datos para Sistema       ##
+// ##              de Gestión Universitaria            ##
+// ######################################################
+
+// --- ENUMS (Tipos de Datos Personalizados) ---
+
+enum status_subject {
+  "APROBADA"
+  "REPROBADA"
+  "INSCRITA"
+  "RETIRADA"
+  "CURSANDO"
+}
+
+enum status_user {
+  "PENDIENTE"
+  "ACTIVO"
+  "INACTIVO"
+}
+
+enum status_period {
+  "PLANIFICADO"
+  "INSCRIPCION_ABIERTA"
+  "EN_CURSO"
+  "CERRADO"
+}
+
+enum day_of_week {
+  "PLANIFICADO"
+  "INSCRIPCION_ABIERTA"
+  "EN_CURSO"
+  "CERRADO"
+}
+
+// --- TABLAS PRINCIPALES ---
+
+Table users {
+  id uuid [pk]
+  firstName varchar
+  lastName varchar
+  email varchar [unique, not null]
+  password varchar [not null]
+  documentId varchar [unique, not null]
+  status status_user [default: 'PENDIENTE']
+  careerId uuid [null]
+  createdAt timestamp [default: `now()`]
+  updatedAt timestamp [default: `now()`]
+}
+
+Table roles {
+  id uuid [pk] 
+  name varchar [unique, not null]
+  level integer [not null]
+}
+
+Table careers {
+  id uuid [pk]
+  name varchar [unique, not null]
+  careerCod varchar [unique, not null]
+  coordinatorId uuid
+}
+
+Table subjects {
+  id uuid [pk]
+  name varchar [not null]
+  subjectCod varchar [unique, not null]
+  contact_hours integer [not null, default: 0]
+  credit_units integer [not null, default: 0]
+}
+
+Table periods {
+  id uuid [pk]
+  name varchar [unique, not null]
+  startDate date
+  endDate date
+  status status_period [default: 'PLANIFICADO']
+}
+
+Table sections {
+  id uuid [pk]
+  subjectId uuid [not null]
+  periodId uuid [not null]
+  sectionCode varchar [not null]
+  capacity integer
+  classroom varchar [null]
+}
+
+Table student_enrollments {
+  id uuid [pk]
+  studentId uuid [not null]
+  sectionId uuid [not null]
+  status status_subject [default: 'INSCRITA']
+  grade1 decimal [null]
+  grade2 decimal [null]
+  grade3 decimal [null]
+  grade4 decimal [null]
+  remedialGrade decimal [null]
+  finalGrade decimal [null]
+}
+
+Table class_schedules {
+  id uuid [pk]
+  sectionId uuid [ref: > sections.id]
+  dayOfWeek day_of_week
+  startTime timestamp
+  endTime timestamp
+}
+
+// --- TABLA PIVOTE EXPLÍCITA (Solo para prerrequisitos) ---
+
+Table subject_prerequisites {
+  subjectId uuid [ref: > subjects.id]
+  prerequisiteId uuid [ref: > subjects.id]
+  indexes { (subjectId, prerequisiteId) [pk] }
+}
+
+// --- TABLA PIVOTE CAREER-subjects
+
+Table career_subjects {
+  careerId uuid [ref: > careers.id]
+  subjectId uuid [ref: > subjects.id]
+  semester integer [not null] // <-- CAMPO AÑADIDO
+
+  indexes { (careerId, subjectId) [pk] }
+}
+
+// --- RELACIONES ---
+
+// -- Relaciones Fundamentales --
+ref: users.careerId > careers.id
+ref: users.id < careers.coordinatorId
+
+// -- Relaciones de OFERTA ACADÉMICA --
+ref: sections.subjectId > subjects.id
+ref: sections.periodId > periods.id
+
+// -- Relaciones de INSCRIPCIÓN --
+ref: student_enrollments.studentId > users.id
+ref: student_enrollments.sectionId > sections.id
+
+// -- Relaciones MANY TO MANY (Sintaxis Abreviada) --
+ref: users.id <> roles.id
+ref: sections.id <> users.id
+ref: users.id <> subjects.id

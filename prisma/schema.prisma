@@ -1,0 +1,207 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum PeriodStatus {
+  PLANNING
+  ENROLLMENT
+  IN_PROGRESS
+  CLOSED
+}
+
+enum EnrollmentStatus {
+  ENROLLED // Inscrito, pero las clases no han comenzado
+  IN_PROGRESS // La materia está en curso
+  PASSED // Aprobado
+  FAILED // Reprobado
+  WITHDRAWN // Retirado
+}
+
+model User {
+  id         String     @id @default(uuid())
+  firstName  String
+  lastName   String
+  email      String     @unique
+  password   String
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  documentId String     @unique
+  status     UserStatus? @default(PENDING)
+
+  // One-to-many relationship with Role
+  roles              Role[]              @relation("UserRoles") // Un usuario puede tener muchos roles
+  // One-to-many relationship with Career
+  careerId           String? // Un usuario solo puede tener una carrera
+  career             Career?             @relation("UserCareers", fields: [careerId], references: [id])
+  // One-to-many relationship with Career as coordinator
+  coordinatedCareers Career[]            @relation("CoordinatorToCareers") // Un usuario puede coordinar muchas carreras
+  // Many-to-many relationship with Subject
+  subjects           Subject[]           @relation("UserSubjects") // Un profesor puede tener muchas materias
+  // Many-to-many relationship witb Section
+  sections           Section[]           @relation("TeacherSections")
+  // One-to-many relationship with StudentEnrollment
+  studentEnrollments StudentEnrollment[] @relation("StudentEnrollments")
+}
+
+model Role {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  level     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Many-to-many relationship with User
+  users User[] @relation("UserRoles") // Un rol puede tener muchos usuarios
+}
+
+model Career {
+  id          String   @id @default(uuid())
+  name        String
+  careerCode  String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // One-to-many relationship with User
+  users         User[]           @relation("UserCareers") // Una carrera puede tener muchos usuarios
+  // Many-to-one relationship with User
+  coordinator   User?            @relation("CoordinatorToCareers", fields: [coordinatorId], references: [id])
+  coordinatorId String? // Un usuario puede ser coordinador de una carrera
+  // Many-to-many relationship with Subject
+  subjects      CareerSubjects[] // Una carrera puede tener muchas materias
+}
+
+model Subject {
+  id           String   @id @default(uuid())
+  name         String
+  code         String   @unique
+  description  String?
+  createdAt    DateTime @default(now())
+  credit_units Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  // Many-to-many relationship with Career
+  careers           CareerSubjects[] // Apunta al modelo de unión
+  // Many-to-many relationship with User
+  teachers          User[]                 @relation("UserSubjects") // Una materia puede tener muchos profesores
+  // Apunta al modelo de unión 'SubjectPrerequisites'.
+  prerequisites     SubjectPrerequisites[] @relation("subject")
+  // Esta es la relación inversa. Listará las materias para las cuales ESTA materia es un prerrequisito.
+  isPrerequisiteFor SubjectPrerequisites[] @relation("prerequisite")
+  // One-to-many relationship with Section
+  sections          Section[]              @relation("SubjectSections")
+}
+
+// Tabla pivote para relacionar carrers y subjest
+model CareerSubjects {
+  career   Career @relation(fields: [careerId], references: [id])
+  careerId String
+
+  subject   Subject @relation(fields: [subjectId], references: [id])
+  subjectId String
+
+  semester Int // <-- CAMPO AÑADIDO
+
+  @@id([careerId, subjectId])
+}
+
+// Tabla pivote para relacionar id de una materia con el id de otra materia
+model SubjectPrerequisites {
+  subjectId      String
+  prerequisiteId String
+
+  // Many-to-one relationship with Subject
+  subject      Subject @relation("subject", fields: [subjectId], references: [id])
+  // Many-to-one relationship with Subject as prerequisite
+  prerequisite Subject @relation("prerequisite", fields: [prerequisiteId], references: [id])
+
+  @@id([subjectId, prerequisiteId])
+}
+
+model Section {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique
+  capacity  Int
+  classroom String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  //Many-to-one relations with Subject
+  subjectId          String
+  subject            Subject?             @relation("SubjectSections", fields: [subjectId], references: [id])
+  //Many-to-many Relationship with User
+  teachers           User[]              @relation("TeacherSections")
+  // One-to-many relationship with ClassSchedule
+  schedule           ClassSchedule[]     @relation("ScheduleSections")
+  // Many-to-one relationship with Period
+  periodId           String
+  period             Period?              @relation("PeriodSections", fields: [periodId], references: [id])
+  // One-to-many relationship with StudentEnrollment
+  sectionEnrollments StudentEnrollment[] @relation("SectionEnrollments")
+}
+
+model ClassSchedule {
+  id        String    @id @default(uuid())
+  dayOfWeek DayOfWeek
+  startTime String //Guardar en formato HH:mm
+  endTime   String //Guardar en formato HH:mm
+  sectionId String
+
+  // Many-to-one relationship with Section
+  section Section? @relation("ScheduleSections", fields: [sectionId], references: [id])
+}
+
+model Period {
+  id        String       @id @default(uuid())
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  status    PeriodStatus @default(PLANNING)
+
+  //One-to-many relationship with Section
+  sections Section[] @relation("PeriodSections")
+}
+
+model StudentEnrollment {
+  id            String           @id @default(uuid())
+  status        EnrollmentStatus @default(ENROLLED)
+  grade1        Decimal?
+  grade2        Decimal?
+  grade3        Decimal?
+  grade4        Decimal?
+  remedialGrade Decimal?
+  finalGrade    Decimal?
+
+  // Many-to-one relationship with Section
+  sectionId String
+  section   Section? @relation("SectionEnrollments", fields: [sectionId], references: [id])
+  // Many-to-one relationship with Section
+  studentId String
+  student   User?    @relation("StudentEnrollments", fields: [studentId], references: [id])
+}
