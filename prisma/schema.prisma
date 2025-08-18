@@ -63,7 +63,7 @@ model User {
   // Many-to-many relationship with Subject
   subjects           Subject[]           @relation("UserSubjects") // Un profesor puede tener muchas materias
   // Many-to-many relationship witb Section
-  sections           Section[]           @relation("TeacherSections")
+  sections           Section[]           @relation("TeacherSections") // secciones Abietas por el profesor
   // One-to-many relationship with StudentEnrollment
   studentEnrollments StudentEnrollment[] @relation("StudentEnrollments")
 }

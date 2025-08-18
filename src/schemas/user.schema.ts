@@ -17,3 +17,13 @@ export const userUpdateSchema = Joi.object({
     password: Joi.string(),
     documentId: Joi.string()
 })
+
+export const addRoleToUser = Joi.object({
+    userId: Joi.string().required().uuid(),
+    roleId: Joi.string().required().uuid(),
+})
+
+export const addCoordinatorToCareer = Joi.object({
+    careerId: Joi.string().required().uuid(),
+    coordinatorId: Joi.string().required().uuid(),
+})

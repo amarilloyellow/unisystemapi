@@ -6,6 +6,7 @@
 import express from "express";
 import roleRouter from "./routes/role.route"; // Ruta CRUD para los roles
 import userRouter from "./routes/user.route";
+import careerRouter from "./routes/career.route";
 
 // Inicializamos express
 const app = express()
@@ -17,6 +18,8 @@ app.use(express.json())
 app.use("/api/roles", roleRouter)
 // MIddleware para la ruta User
 app.use("/api/users", userRouter)
+// MIddleware para la ruta Career
+app.use("/api/careers/", careerRouter)
 
 // Abrimos server http en el puerto 3000
 app.listen(3000, () => {
